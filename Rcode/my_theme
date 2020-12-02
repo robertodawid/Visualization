@@ -1,0 +1,60 @@
+library(xlsx)
+library(extrafont)
+library(ggplot2)
+loadfonts(device = "win")
+
+# Reading technologies -----------------------------------------------------
+tech = read.xlsx("Tech.xlsx", sheetName = "Sheet1")
+
+
+# my theme ----------------------------------------------------------------
+rh_theme = theme(legend.text = element_text(size = 5, face = "plain"),
+           legend.title = element_text(size = 8, face = "plain"),
+           legend.key.size = unit(0.2,"cm"),
+           legend.background = element_rect(fill = "White"),
+           legend.spacing.y = unit(0, 'mm'),
+           #grids
+           panel.grid.major = element_line(size = .10, color = "grey"),
+           panel.grid.minor = element_line(size = .05 , color = "grey"),
+           #increase size of axis lines
+           axis.line = element_line(size=.20, color = "black"),
+           #increase the font size and type
+           text = element_text(family="Arial Narrow", size=8),
+           plot.title = element_text(face = "bold", hjust = 0.5),
+           plot.margin = unit(c(0,1,1,1), "mm"),
+           panel.background = element_rect(fill = "transparent"),
+           strip.text.x = element_text(margin = margin(1,1,2,1)),
+           strip.text.y = element_text(margin = margin(1,1,2,1)))
+
+cols =  c(setNames(as.character(tech$hex), tech$t_color))
+#https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/setNames
+
+
+#functions
+
+tech_names = function(x) {
+  #function to change names of technologies from momani
+  x$t = as.character(x$t) # x is the data frame where contain the technology (t) eg. ancGP_SDR_cap_by_tech$t
+  tech$t = as.character(tech$t)
+  tech$t_names = as.character(tech$t_names)
+  
+  
+  l = length(x$t)
+  l2 = length(tech$t)
+  
+  for (j in 1:l) {
+    for(i in 1:l2) {
+      if(x[j,2] == tech[i,1]) {
+        x[j,2] = tech[i,3]
+      }
+    }
+  }
+  
+  x$t = as.factor(x$t)
+  tech$t = as.factor(tech$t)
+  tech$t_names = as.factor(tech$t_names)
+  return(x)
+  
+}
+
+
