@@ -1,0 +1,217 @@
+#library
+library(ggplot2)
+options(java.parameters = "-Xm4000m")
+library("xlsx")
+library(reshape2)
+library(dplyr)
+library(lubridate)
+library(extrafont)
+library(svglite)
+loadfonts()
+#font_import()
+#loadfonts(device = "win")
+
+source("my_theme.R")
+
+
+# Load Curves -------------------------------------------------------------
+lc = read.xlsx("Demand.xlsx", sheetName = "load_curve", colIndex = (1:3), header = TRUE)
+lc$Sector = factor(lc$St, levels = c("Residential", "Commercial", "Industry", "Public lighting"))
+
+
+#graph
+lc_gr = (ggplot(lc, aes(x = hour))
+         + geom_line(aes(y = use, color = Sector), size=0.40, linejoin = "round")
+         + geom_point(aes(y = use, colour=Sector, shape=Sector), size=0.75)
+         + scale_x_continuous(breaks =seq(0,24,2))
+         + scale_y_continuous(breaks =seq(0,1.2,0.1))
+         + theme(legend.position = "bottom",
+                 legend.margin = margin(-3,1,1,1,"mm"))
+         + labs(title = element_blank(), x = "time (h)", y = "Load \n (% of the baseline peak)")
+         + scale_color_viridis_d(option = "D", begin = 0.1, end = 0.85)
+         +  rh_theme)
+
+lc_gr
+
+#grap5
+ggsave("lc_gr.tiff",plot=lc_gr, units="cm", width=7, height=6, dpi=300)
+#ggsave("lc_gr1.svg",plot=lc_gr, units="cm", width=7, height = 6)
+svg("lc_gr.svg",width= 7/2.54, height = 6/2.54)
+plot(lc_gr)
+
+
+# Demand projections -------------------------------------------------------------
+dp = read.xlsx("C:/Users/rdhf/Box Sync/Ecuador/Data/times slices-specific demand profile/Data Input_template.xlsx", sheetName = "3.Demand projections,RawData", colIndex = (13:49), rowIndex = (37:47), header = F)
+dp = dp[-c(2,3,5:8),]
+dp = t(dp)
+
+dp =`colnames<-`(dp,c("y","Industry","Residential","Commercial","Public lighting"))
+dp = as.data.frame(dp)
+
+# change from wide to long format
+# http://www.cookbook-r.com/Manipulating_data/Converting_data_between_wide_and_long_format/
+dp = melt(dp, id.vars = c("y"))
+names(dp)[2] = "St"
+dp$Sector = factor(dp$St, levels = c("Residential", "Commercial", "Industry", "Public lighting"))
+
+#graph
+dp_gr = (ggplot(dp, aes(x = y))
+         + geom_line(aes(y = value, color = Sector), size=0.40, linejoin = "round")
+         + geom_point(aes(y = value, colour = Sector, shape = Sector), size=0.75)
+         + scale_x_continuous(breaks =seq(2018,2050,5))
+         + scale_y_continuous(breaks =seq(0,100,10))
+         + theme(legend.position = "bottom",
+                 legend.margin = margin(-3,1,1,1,"mm"))
+         + labs(title = element_blank(), x = "year", y = "Demand (PJ)")
+         + rh_theme
+         + labs(color= "Sector")
+         + labs(colour = "Sector")
+         + scale_color_viridis_d(option = "D", begin = 0.1, end = 0.85))
+
+dp_gr
+#grap5
+ggsave("dp_gr.tiff",plot=dp_gr, units="cm", width=7, height=6, dpi=300)
+#ggsave("dp_gr.svg",plot=dp_gr, units="cm", width=7, height=6, dpi=300)
+svg("dp_gr.svg",width= 7/2.54, height = 6/2.54)
+plot(dp_gr)
+dev.off()
+
+
+
+# Power Demand 2018 by tech -------------------------------------------------------
+p_d_2018 = read.xlsx("Demand.xlsx", sheetName = "P_D_2018", colIndex = (1:6), header = TRUE)
+h = p_d_2018$Time
+da = p_d_2018$Date
+
+#time series
+p_d_2018$date1 = (as.POSIXct(paste(da, h), tz = "America/New_York", format = "%Y-%m-%d  %H:%M:%S", origin = "2018-01-01"))
+
+#time
+time = (as.numeric(hms(p_d_2018$Time))/3600)
+
+
+#thermal
+df1 = cbind.data.frame(p_d_2018$date1,p_d_2018$Thermal, time)
+df1["tech"] = "Thermal"
+names(df1)[names(df1)=="p_d_2018$Thermal"] = "g"
+head(df1)
+
+#hydro
+df2 = cbind.data.frame(p_d_2018$date1,p_d_2018$Hydro, time)
+df2["tech"] = "Hydro"
+names(df2)[names(df2)=="p_d_2018$Hydro"] = "g"
+head(df2)
+
+#ren
+df3 = cbind.data.frame(p_d_2018$date1,p_d_2018$Ren, time)
+df3["tech"] = "non-Hydro Res"
+names(df3)[names(df3)=="p_d_2018$Ren"] = "g"
+head(df3)
+
+#total
+#ren
+df4 = cbind.data.frame(p_d_2018$date1,p_d_2018$Total, time)
+df4["tech"] = "Total"
+names(df4)[names(df4)=="p_d_2018$Total"] = "g"
+head(df4)
+
+#total data frame
+dft = rbind(df1,df2,df3)
+names(dft)[names(dft)=="p_d_2018$date1"] = "day"
+
+#graph demand by tech
+p_d_2018_gr_p = (ggplot(dft, aes(x = day))
+               + geom_path(aes(y = g, color = tech), lwd=0.25,  alpha=0.75)
+               + scale_x_datetime(date_breaks = "1 month",
+                                  date_labels = "%b",
+                                  minor_breaks = "1 month")
+               + theme(axis.text.x = element_text(angle = 0),
+                       legend.position = "none")
+               + labs(title = element_blank(), x = element_blank(), y = "Demand [MW]")
+               + facet_grid(tech~., scales = "free")
+               + scale_color_manual(values = c("#008BBC", "#4F6228", "#566C8C"))
+               + rh_theme)
+
+p_d_2018_gr_p
+#graph
+ggsave("p_d_2018_gr_p.tiff",plot=p_d_2018_gr_p, units="cm", width=10, height=8, dpi=300)
+ggsave("test1.tiff",plot=p_d_2018_gr_p, units="cm", width=10, height=8, dpi=300)
+
+#ggsave("p_d_2018_gr_p1.svg",plot=p_d_2018_gr_p, units="cm", width=10, height=8, dpi=300)
+svg("p_d_2018_gr_p.svg",width= 10/2.54, height = 8/2.54)
+plot(p_d_2018_gr_p)
+dev.off()
+
+# graph average demand by month -----------------------------------------
+p_d_2018$month = as.Date(paste(month(p_d_2018$Date),"-01",sep=""), format="%m-%d")
+p_d_2018_m = (ggplot(p_d_2018, aes(x = month, group=month))
+              + geom_boxplot(aes(y = p_d_2018$Hydro + p_d_2018$Ren + p_d_2018$Thermal), lwd=0.25,  alpha=0.85, fill= "grey", 
+                             outlier.colour = "blue", outlier.size = 0.5)
+              + scale_x_date(date_breaks = "1 month",
+                             date_labels = "%b",
+                             minor_breaks = "1 month")
+              + theme(axis.text.x = element_text(angle = 90),
+                      legend.position = "none")
+              + labs(title = element_blank(), x = element_blank(), y = "Demand [MW]")
+              + rh_theme)
+
+p_d_2018_m
+#graph plot
+ggsave("p_d_2018_m.tiff",plot=p_d_2018_m, units="cm", width=7, height=6, dpi=300)
+#ggsave("p_d_2018_m.svg",plot=p_d_2018_m, units="cm", width=7, height=6, dpi=300)
+svg("p_d_2018_m.svg",width= 7/2.54, height =6/2.54)
+plot(p_d_2018_m)
+dev.off()
+
+
+# graph average demand by hour ------------------------------------------
+p_d_2018_gr = (ggplot(p_d_2018, aes(x = time, group = time))
+               + geom_boxplot(aes(y = p_d_2018$Total), lwd=0.15,  alpha=0.5,
+                              fill = "Grey", outlier.colour = "blue", outlier.size = 0.5)
+               + scale_y_continuous(breaks =seq(0,4000,500), limits = c(1500,4000))
+               + scale_x_continuous(breaks =seq(0,24,2))
+               + theme(axis.text.x = element_text(angle = 0))
+               + labs(title = element_blank(), x = "time(h)", y = "Demand [MW]")
+               + rh_theme)
+
+p_d_2018_gr
+  #graph plot
+ggsave("p_d_2018_gr.tiff",plot=p_d_2018_gr, units="cm", width=7, height=6, dpi=300)
+#ggsave("p_d_2018_gr.svg",plot=p_d_2018_gr, units="cm", width=7, height=6, dpi=300)
+svg("p_d_2018_gr.svg",width= 7/2.54, height =6/2.54)
+plot(p_d_2018_gr)
+dev.off()
+
+
+
+
+test1 = (ggplot(dft, aes(x = time, group = time))
+                + geom_boxplot(aes(y = g), lwd=0.25,  alpha=0.75,
+                                fill = "Grey", outlier.colour = "blue", outlier.size = 0.5)
+                #+ scale_y_continuous(breaks =seq(0,4000,500), limits = c(1500,4000))
+                + scale_x_continuous(breaks =seq(0,24,2))
+                + theme(axis.text.x = element_text(angle = 0),
+                         legend.position = "none")
+                + labs(title = element_blank(), x = element_blank(), y = "Demand [MW]")
+                + facet_grid(tech~., scales = "free")
+                + rh_theme)
+
+test1
+ggsave("test1.tiff",plot=test1, units="cm", width=15, height=10, dpi=300)
+
+
+test2 = (ggplot(dft, aes(x = g, group = tech, fill=tech))
+         + geom_density(adjust = 1.5, alpha=4)
+         + rh_theme)
+
+test2
+ggsave("test1.tiff",plot=test1, units="cm", width=15, height=10, dpi=300)
+
+
+
+
+
+
+
+
+
