@@ -1,0 +1,404 @@
+#library
+library(ggplot2)
+library("xlsx")
+library(reshape2)
+library(extrafont)
+library(dplyr)
+library(lubridate)
+
+#font_import()
+#loadfonts(device = "win")
+
+source("my_theme.R")
+
+
+# Annual Production by Tech by year by Scenario ----------
+
+#SOCIAL DISCOUNT RATES
+#BAU_SDR_39 = read.csv("C:/Users/rdhf/Box Sync/Ecuador/Research papers/Ec/Models results/BAU/BAU currents trends 3.9%/ProductionByTechnologyAnnual.csv", header = TRUE)
+#BAU_SDR_39 ["SDR"] = "SDR-3.9"
+
+BAU_SDR_5  = read.csv("C:/Users/rdhf/Box Sync/Ecuador/Research papers/Ec/Models results/BAU/BAU currents trends 5%/ProductionByTechnologyAnnual.csv", header = TRUE)
+BAU_SDR_5 ["SDR"] = "SDR-5"
+
+BAU_SDR_10 = read.csv("C:/Users/rdhf/Box Sync/Ecuador/Research papers/Ec/Models results/BAU/BAU currents trends 10%/ProductionByTechnologyAnnual.csv", header = TRUE)
+BAU_SDR_10 ["SDR"] = "SDR-10"
+
+BAU_SDR_12 = read.csv("C:/Users/rdhf/Box Sync/Ecuador/Research papers/Ec/Models results/BAU/BAU currents trends 12%/ProductionByTechnologyAnnual.csv", header = TRUE)
+BAU_SDR_12 ["SDR"] = "SDR-12"
+
+#Hurdle rates
+BAU_LDR = read.csv("C:/Users/rdhf/Box Sync/Ecuador/Research papers/Ec/Models results/BAU/BAU currents trends LDR/ProductionByTechnologyAnnual.csv", header = TRUE)
+BAU_LDR ["HR"] = "LHR"
+
+BAU_HDR = read.csv("C:/Users/rdhf/Box Sync/Ecuador/Research papers/Ec/Models results/BAU/BAU currents trends HDR/ProductionByTechnologyAnnual.csv", header = TRUE)
+BAU_HDR ["HR"] = "HHR"
+
+
+#join all scenarios
+BAU_SDR_prod_by_tech = rbind(BAU_SDR_5, BAU_SDR_10, BAU_SDR_12)
+BAU_HR_prod_by_tech = rbind(BAU_LDR, BAU_HDR)
+
+#filtering by list of technologies and productin >0
+BAU_SDR_prod_by_tech = filter(BAU_SDR_prod_by_tech,
+                              BAU_SDR_prod_by_tech$t %in% tech$t,
+                              BAU_SDR_prod_by_tech$f %in% tech$fuels,
+                              BAU_SDR_prod_by_tech$ProductionByTechnologyAnnual> 0)
+
+
+
+
+BAU_HR_prod_by_tech = filter(BAU_HR_prod_by_tech,
+                             BAU_HR_prod_by_tech$t %in% tech$t,
+                             BAU_HR_prod_by_tech$f %in% tech$fuels,
+                             BAU_HR_prod_by_tech$ProductionByTechnologyAnnual> 0)
+
+#naming tech
+BAU_SDR_prod_by_tech = tech_names(BAU_SDR_prod_by_tech)
+BAU_HR_prod_by_tech = tech_names(BAU_HR_prod_by_tech)
+
+
+
+#sorting the scenarios
+BAU_SDR_prod_by_tech$SDR_f = factor(BAU_SDR_prod_by_tech$SDR, levels = c("SDR-5","SDR-10","SDR-12"))
+BAU_HR_prod_by_tech$HR_f = factor(BAU_HR_prod_by_tech$HR, levels = c("LHR","HHR"))
+
+#graph
+BAU_SDR_prod_by_tech_graph = (ggplot(BAU_SDR_prod_by_tech,aes(x= y, y = (ProductionByTechnologyAnnual), fill=t))
+                      + geom_bar(stat = "identity")
+                      + scale_x_continuous(breaks =seq(2018,2050,4))
+                      + scale_y_continuous(breaks =seq(0,300,40))
+                      + theme(legend.position = "bottom",
+                              legend.text = element_text(size = 4),
+                              legend.box.margin=margin(-15,-10,-5,-10),
+                              axis.text.x = element_text(angle = 90)
+                              )
+                      + labs(title = element_blank(), x = element_blank(), y = "Generation mix(PJ)", fill="Tech")
+                      + scale_fill_manual (values = cols)
+                      + facet_grid(SDR_f~.)
+                      + rh_theme
+                      + guides(fill=guide_legend(nrow=4,byrow=TRUE)))
+BAU_SDR_prod_by_tech_graph
+
+#write.csv(prod_by_tech,'p_b_T.csv')
+#       + facet_grid(~Scenario) if you want a graph by scenario, use the result of "prod"
+ggsave("BAU_SDR_prod_by_tech.tiff",plot=BAU_SDR_prod_by_tech_graph, units="cm", width=8.5, height=9, dpi=300)
+#ggsave("BAU_SDR_prod_by_tech.svg",plot=BAU_SDR_prod_by_tech_graph, units="cm", width=8.5, height=9, dpi=300)
+svg("BAU_SDR_prod_by_tech_graph.svg",width= 8.5/2.54, height =9/2.54)
+plot(BAU_SDR_prod_by_tech_graph)
+dev.off()
+
+BAU_HR_prod_by_tech_graph = (ggplot(BAU_HR_prod_by_tech,aes(x= y, y = (ProductionByTechnologyAnnual), fill=t))
+                              + geom_bar(stat = "identity")
+                              + scale_x_continuous(breaks =seq(2018,2050,4))
+                              + scale_y_continuous(breaks =seq(0,300,40))
+                              + theme(legend.position = "bottom",
+                                      legend.text = element_text(size = 4),
+                                      legend.box.margin=margin(-15,-10,-5,-10),
+                                      axis.text.x = element_text(angle = 90)
+                              )
+                              + labs(title = element_blank(), x = element_blank(), y = "Generation mix(PJ)", fill="Tech")
+                      + scale_fill_manual (values = cols)
+                      + facet_grid(HR_f~.)
+                      + rh_theme)
+BAU_HR_prod_by_tech_graph
+
+#write.csv(prod_by_tech,'p_b_T.csv')
+#       + facet_grid(~Scenario) if you want a graph by scenario, use the result of "prod"
+ggsave("BAU_HR_prod_by_tech.tiff",plot=BAU_HR_prod_by_tech_graph, units="cm", width=8.5, height=6.75, dpi=300)
+#ggsave("BAU_HR_prod_by_tech.svg",plot=BAU_HR_prod_by_tech_graph, units="cm", width=8.5, height=6.75, dpi=300)
+svg("BAU_HR_prod_by_tech_graph.svg",width= 8.5/2.54, height =6.75/2.54)
+plot(BAU_HR_prod_by_tech_graph)
+dev.off()
+
+# Emissions ---------------------------------------------------------------
+
+#read csv file
+
+eBAU_SDR_39 = read.csv("C:/Users/rdhf/Box Sync/Ecuador/Research papers/Ec/Models results/BAU/BAU currents trends 3.9%/AnnualEmissions.csv", header = TRUE)
+eBAU_SDR_39 ["Scn"] = "SDR-3.9"
+
+eBAU_SDR_5  = read.csv("C:/Users/rdhf/Box Sync/Ecuador/Research papers/Ec/Models results/BAU/BAU currents trends 5%/AnnualEmissions.csv", header = TRUE)
+eBAU_SDR_5 ["Scn"] = "SDR-5"
+
+eBAU_SDR_10 = read.csv("C:/Users/rdhf/Box Sync/Ecuador/Research papers/Ec/Models results/BAU/BAU currents trends 10%/AnnualEmissions.csv", header = TRUE)
+eBAU_SDR_10 ["Scn"] = "SDR-10"
+
+eBAU_SDR_12 = read.csv("C:/Users/rdhf/Box Sync/Ecuador/Research papers/Ec/Models results/BAU/BAU currents trends 12%/AnnualEmissions.csv", header = TRUE)
+eBAU_SDR_12 ["Scn"] = "SDR-12"
+
+#Hurdle rates
+eBAU_LDR = read.csv("C:/Users/rdhf/Box Sync/Ecuador/Research papers/Ec/Models results/BAU/BAU currents trends LDR/AnnualEmissions.csv", header = TRUE)
+eBAU_LDR ["Scn"] = "LHR"
+
+eBAU_HDR = read.csv("C:/Users/rdhf/Box Sync/Ecuador/Research papers/Ec/Models results/BAU/BAU currents trends HDR/AnnualEmissions.csv", header = TRUE)
+eBAU_HDR ["Scn"] = "HHR"
+
+
+#join all scenarios
+eBAU = rbind(eBAU_SDR_5, eBAU_SDR_10, eBAU_SDR_12, eBAU_LDR, eBAU_HDR)
+eBAU$e = as.character(eBAU$e)
+eBAU$e[eBAU$e == "EM_CO2"] = "CO2"
+eBAU$e[eBAU$e == "EM_CH4"] = "CH4"
+eBAU$e[eBAU$e == "EM_NO2"] = "NO2"
+eBAU$e = as.factor(eGP$e)
+
+#sorting the scenarios
+eBAU$e_f = factor(eBAU$e, levels = c("CO2","CH4","NO2"))
+#graph
+eBAU_graph = (ggplot(eBAU,aes(x=y))
+                          + geom_line(aes(y = AnnualEmissions, colour=Scn), size=0.30, linejoin = "round")
+                          + geom_point(aes(y = AnnualEmissions, colour=Scn, shape=Scn), size=0.5)
+                          + scale_x_continuous(breaks =seq(2018,2050,4))
+                          + theme(legend.position = "bottom",
+                           legend.text = element_text(size = 4),
+                           legend.margin=margin(-3, 0, 0, 0,"mm"),
+                           axis.text.x = element_text(angle = 0),
+                           )
+                          + labs(title = element_blank(), x = element_blank(), y = "Emissions (kT)",
+                                 colour ="Scenario", shape="Scenario")
+                          + rh_theme
+                          + facet_grid(e_f~. , scales = "free_y")
+                          + scale_color_viridis_d(option = "D", begin = 0.1, end = 0.85)) 
+
+eBAU_graph
+#Annual_emissions_graph
+ggsave("eBAU.tiff",plot=eBAU_graph, units="cm", width=7.6, height=9, dpi=300)
+#ggsave("eBAU.svg",plot=eBAU_graph, units="cm", width=7.6, height=9, dpi=600)
+svg("eBAU.svg",width= 7.6/2.54, height = 9/2.54)
+plot(eBAU_graph)
+dev.off()
+
+
+# Accumulated New capacity ------------------------------------------------------------
+
+#SOCIAL DISCOUNT RATES
+ancBAU_SDR_39 = read.csv("C:/Users/rdhf/Box Sync/Ecuador/Research papers/Ec/Models results/BAU/BAU currents trends 3.9%/AccumulatedNewCapacity.csv", header = TRUE)
+ancBAU_SDR_39 ["SDR"] = "SDR-3.9"
+
+ancBAU_SDR_5  = read.csv("C:/Users/rdhf/Box Sync/Ecuador/Research papers/Ec/Models results/BAU/BAU currents trends 5%/AccumulatedNewCapacity.csv", header = TRUE)
+ancBAU_SDR_5 ["SDR"] = "SDR-5"
+
+ancBAU_SDR_10 = read.csv("C:/Users/rdhf/Box Sync/Ecuador/Research papers/Ec/Models results/BAU/BAU currents trends 10%/AccumulatedNewCapacity.csv", header = TRUE)
+ancBAU_SDR_10 ["SDR"] = "SDR-10"
+
+ancBAU_SDR_12 = read.csv("C:/Users/rdhf/Box Sync/Ecuador/Research papers/Ec/Models results/BAU/BAU currents trends 12%/AccumulatedNewCapacity.csv", header = TRUE)
+ancBAU_SDR_12 ["SDR"] = "SDR-12"
+
+#Hurdle rates
+ancBAU_LDR = read.csv("C:/Users/rdhf/Box Sync/Ecuador/Research papers/Ec/Models results/BAU/BAU currents trends LDR/AccumulatedNewCapacity.csv", header = TRUE)
+ancBAU_LDR ["HR"] = "LHR"
+
+ancBAU_HDR = read.csv("C:/Users/rdhf/Box Sync/Ecuador/Research papers/Ec/Models results/BAU/BAU currents trends HDR/AccumulatedNewCapacity.csv", header = TRUE)
+ancBAU_HDR ["HR"] = "HHR"
+
+
+#join all scenarios
+ancBAU_SDR_cap_by_tech = rbind(ancBAU_SDR_5, ancBAU_SDR_10, ancBAU_SDR_12)
+ancBAU_HR_cap_by_tech = rbind(ancBAU_LDR, ancBAU_HDR)
+
+#filtering by list of technologies and productin >0
+ancBAU_SDR_cap_by_tech = filter(ancBAU_SDR_cap_by_tech,
+                              ancBAU_SDR_cap_by_tech$t %in% tech$t,
+                              ancBAU_SDR_cap_by_tech$AccumulatedNewCapacity> 0)
+
+
+ancBAU_HR_cap_by_tech = filter(ancBAU_HR_cap_by_tech,
+                             ancBAU_HR_cap_by_tech$t %in% tech$t,
+                             ancBAU_HR_cap_by_tech$AccumulatedNewCapacity> 0)
+
+#naming tech
+ancBAU_SDR_cap_by_tech = tech_names(ancBAU_SDR_cap_by_tech)
+ancBAU_HR_cap_by_tech = tech_names(ancBAU_HR_cap_by_tech)
+
+#sorting the scenarios
+ancBAU_SDR_cap_by_tech$SDR_f = factor(ancBAU_SDR_cap_by_tech$SDR, levels = c("SDR-3.9","SDR-5","SDR-10","SDR-12"))
+ancBAU_HR_cap_by_tech$HR_f = factor(ancBAU_HR_cap_by_tech$HR, levels = c("LHR","HHR"))
+
+#updating existent
+
+ancBAU_SDR_cap_by_tech$t = as.character(ancBAU_SDR_cap_by_tech$t)
+ancBAU_SDR_cap_by_tech$t[ancBAU_SDR_cap_by_tech$t == "Hydro_ext"] = "Hydro_M"  
+ancBAU_SDR_cap_by_tech$t = as.factor(ancBAU_SDR_cap_by_tech$t)
+
+ancBAU_HR_cap_by_tech$t = as.character(ancBAU_HR_cap_by_tech$t)
+ancBAU_HR_cap_by_tech$t[ancBAU_HR_cap_by_tech$t == "Hydro_ext"] = "Hydro_M"  
+ancBAU_HR_cap_by_tech$t = as.factor(ancBAU_HR_cap_by_tech$t)
+
+
+
+#Graph SDR
+ancBAU_SDR_cap_by_tech_graph = (ggplot(ancBAU_SDR_cap_by_tech, aes(x= y, y = (AccumulatedNewCapacity), fill=t))
+                              + geom_bar(stat = "identity", width = 0.8)
+                              + scale_x_continuous(breaks =seq(2018,2050,2))
+                              + scale_y_continuous(limits = c(0,14), breaks =seq(0,20,2))
+                              + theme(legend.position = "bottom",
+                                      legend.text = element_text(size = 4),
+                                      legend.margin = margin(-3,1,0,1,"mm"),
+                                      axis.text.x = element_text(angle = 90))
+                              + labs(title = element_blank(), x = element_blank(), y = "Accumulated new capacity (GW)", fill="Tech")
+                              + scale_fill_manual (values = cols)
+                              + facet_grid(SDR_f~.)
+                              #  + scale_fill_viridis_d(option = "D", begin = 0.1, end = 0.85)
+                              + rh_theme
+                              + guides(fill=guide_legend(nrow=3,byrow=TRUE)))
+ancBAU_SDR_cap_by_tech_graph
+
+#       + facet_grid(~Scenario) if you want a graph by scenario, use the result of "prod"
+ggsave("ancBAU_SDR_cap_by_tech_graph.tiff",plot=ancBAU_SDR_cap_by_tech_graph, units="cm", width=7.6, height=9, dpi=300)
+#ggsave("ancBAU_SDR_cap_by_tech_graph.svg",plot=ancBAU_SDR_cap_by_tech_graph, units="cm", width=7.6, height=9, dpi=300)
+svg("ancBAU_SDR_cap_by_tech_graph.svg",width= 7.6/2.54, height = 9/2.54)
+plot(ancBAU_SDR_cap_by_tech_graph)
+dev.off()
+
+
+#Graph HR
+ancBAU_HR_cap_by_tech_graph = (ggplot(ancBAU_HR_cap_by_tech, aes(x= y, y = (AccumulatedNewCapacity), fill=t))
+                             + geom_bar(stat = "identity", width = 0.8)
+                             + scale_x_continuous(breaks =seq(2018,2050,2))
+                             + scale_y_continuous(limits = c(0,14), breaks =seq(0,20,2))
+                             + theme(legend.position = "bottom",
+                                     legend.text = element_text(size = 4),
+                                     legend.margin = margin(-3,1,1,1,"mm"),
+                                     axis.text.x = element_text(angle = 90))
+                             + labs(title = element_blank(), x = element_blank(), y = "Accumulated new capacity (GW)", fill="Tech")
+                             + scale_fill_manual (values = cols)
+                             + facet_grid(HR_f~.)
+                             #  + scale_fill_viridis_d(option = "D", begin = 0.1, end = 0.85)
+                             + rh_theme
+                             + guides(fill=guide_legend(nrow=3,byrow=TRUE)))
+ancBAU_HR_cap_by_tech_graph
+
+#       + facet_grid(~Scenario) if you want a graph by scenario, use the result of "prod"
+ggsave("ancBAU_HR_cap_by_tech_graph.tiff", plot=ancBAU_HR_cap_by_tech_graph, units="cm", width=7.6, height=7, dpi=300)
+#gsave("ancBAU_HR_cap_by_tech_graph.svg", plot=ancBAU_HR_cap_by_tech_graph, units="cm", width=7.6, height=7, dpi=300)
+svg("ancBAU_HR_cap_by_tech_graph.svg",width= 7.6/2.54, height = 7/2.54)
+plot(ancBAU_HR_cap_by_tech_graph)
+dev.off()
+
+# New capacity ------------------------------------------------------------
+
+#SOCIAL DISCOUNT RATES
+nBAU_SDR_39 = read.csv("C:/Users/rdhf/Box Sync/Ecuador/Research papers/Ec/Models results/BAU/BAU currents trends 3.9%/NewCapacity.csv", header = TRUE)
+nBAU_SDR_39 ["SDR"] = "SDR-3.9"
+
+nBAU_SDR_5  = read.csv("C:/Users/rdhf/Box Sync/Ecuador/Research papers/Ec/Models results/BAU/BAU currents trends 5%/NewCapacity.csv", header = TRUE)
+nBAU_SDR_5 ["SDR"] = "SDR-5"
+
+nBAU_SDR_10 = read.csv("C:/Users/rdhf/Box Sync/Ecuador/Research papers/Ec/Models results/BAU/BAU currents trends 10%/NewCapacity.csv", header = TRUE)
+nBAU_SDR_10 ["SDR"] = "SDR-10"
+
+nBAU_SDR_12 = read.csv("C:/Users/rdhf/Box Sync/Ecuador/Research papers/Ec/Models results/BAU/BAU currents trends 12%/NewCapacity.csv", header = TRUE)
+nBAU_SDR_12 ["SDR"] = "SDR-12"
+
+#Hurdle rates
+nBAU_LDR = read.csv("C:/Users/rdhf/Box Sync/Ecuador/Research papers/Ec/Models results/BAU/BAU currents trends LDR/NewCapacity.csv", header = TRUE)
+nBAU_LDR ["HR"] = "LHR"
+
+nBAU_HDR = read.csv("C:/Users/rdhf/Box Sync/Ecuador/Research papers/Ec/Models results/BAU/BAU currents trends HDR/NewCapacity.csv", header = TRUE)
+nBAU_HDR ["HR"] = "HHR"
+
+
+#join all scenarios
+nBAU_SDR_cap_by_tech = rbind(nBAU_SDR_5, nBAU_SDR_10, nBAU_SDR_12)
+nBAU_HR_cap_by_tech = rbind(nBAU_LDR, nBAU_HDR)
+
+#filtering by list of technologies and productin >0
+nBAU_SDR_cap_by_tech = filter(nBAU_SDR_cap_by_tech,
+                              nBAU_SDR_cap_by_tech$t %in% tech$t,
+                              nBAU_SDR_cap_by_tech$NewCapacity> 0)
+
+
+nBAU_HR_cap_by_tech = filter(nBAU_HR_cap_by_tech,
+                             nBAU_HR_cap_by_tech$t %in% tech$t,
+                             nBAU_HR_cap_by_tech$NewCapacity> 0)
+
+
+#naming tech
+nBAU_SDR_cap_by_tech = tech_names(nBAU_SDR_cap_by_tech)
+nBAU_HR_cap_by_tech = tech_names(nBAU_HR_cap_by_tech)
+
+
+
+#sorting the scenarios
+nBAU_SDR_cap_by_tech$SDR_f = factor(nBAU_SDR_cap_by_tech$SDR, levels = c("SDR-5","SDR-10","SDR-12"))
+nBAU_HR_cap_by_tech$HR_f = factor(nBAU_HR_cap_by_tech$HR, levels = c("LHR","HHR"))
+
+#updating existent
+
+nBAU_SDR_cap_by_tech$t = as.character(nBAU_SDR_cap_by_tech$t)
+nBAU_SDR_cap_by_tech$t[nBAU_SDR_cap_by_tech$t == "Hydro_ext"] = "Hydro_M"  
+nBAU_SDR_cap_by_tech$t = as.factor(nBAU_SDR_cap_by_tech$t)
+
+nBAU_HR_cap_by_tech$t = as.character(nBAU_HR_cap_by_tech$t)
+nBAU_HR_cap_by_tech$t[nBAU_HR_cap_by_tech$t == "Hydro_ext"] = "Hydro_M"  
+nBAU_HR_cap_by_tech$t = as.factor(nBAU_HR_cap_by_tech$t)
+
+#Graph SDR
+nBAU_SDR_cap_by_tech_graph = (ggplot(nBAU_SDR_cap_by_tech, aes(x= y, y = (NewCapacity), fill=t))
+                         + geom_bar(stat = "identity", width = 0.8)
+                         + scale_x_continuous(breaks =seq(2018,2050,2))
+                         + scale_y_continuous(limits = c(0,1.35), breaks = seq(0,2,0.25))
+                         + theme(legend.position = "bottom",
+                                 legend.text = element_text(size = 4),
+                                 legend.margin = margin(-3,1,1,1,"mm"),
+                                 axis.text.x = element_text(angle = 90))
+                         + labs(title = element_blank(), x = element_blank(), y = "New Capacity (GW)", fill="Tech")
+                         + scale_fill_manual (values = cols)
+                         + facet_grid(SDR_f~.)
+                       #  + scale_fill_viridis_d(option = "D", begin = 0.1, end = 0.85)
+                         + rh_theme)
+nBAU_SDR_cap_by_tech_graph
+
+#       + facet_grid(~Scenario) if you want a graph by scenario, use the result of "prod"
+ggsave("nBAU_SDR_cap_by_tech_graph.tiff",plot=nBAU_SDR_cap_by_tech_graph, units="cm", width=7.6, height=9, dpi=300)
+#ggsave("nBAU_SDR_cap_by_tech_graph.svg",plot=nBAU_SDR_cap_by_tech_graph, units="cm", width=7.6, height=9, dpi=300)
+svg("nBAU_SDR_cap_by_tech_graph.svg",width= 7.6/2.54, height = 9/2.54)
+plot(nBAU_SDR_cap_by_tech_graph)
+dev.off()
+
+#Graph HR
+nBAU_HR_cap_by_tech_graph = (ggplot(nBAU_HR_cap_by_tech, aes(x= y, y = (NewCapacity), fill=t))
+                              + geom_bar(stat = "identity", width = 0.8)
+                              + scale_x_continuous(breaks =seq(2018,2050,2))
+                              + scale_y_continuous(limits = c(0,1.35), breaks =seq(0,2,0.25))
+                              + theme(legend.position = "bottom",
+                                      legend.text = element_text(size = 4),
+                                      legend.margin = margin(-3,1,1,1,"mm"),
+                                      axis.text.x = element_text(angle = 90))
+                              + labs(title = element_blank(), x = element_blank(), y = "New Capacity (GW)", fill="Tech")
+                              + scale_fill_manual (values = cols)
+                              + facet_grid(HR_f~.)
+                              #  + scale_fill_viridis_d(option = "D", begin = 0.1, end = 0.85)
+                              + rh_theme
+                              + guides(fill=guide_legend(nrow=3,byrow=TRUE)))
+nBAU_HR_cap_by_tech_graph
+
+#       + facet_grid(~Scenario) if you want a graph by scenario, use the result of "prod"
+ggsave("nBAU_HR_cap_by_tech_graph.tiff",plot=nBAU_HR_cap_by_tech_graph, units="cm", width=7.6, height=7, dpi=300)
+#ggsave("nBAU_HR_cap_by_tech_graph.svg",plot=nBAU_HR_cap_by_tech_graph, units="cm", width=7.6, height=7, dpi=300)
+svg("nBAU_HR_cap_by_tech_graph.svg",width= 7.6/2.54, height = 7/2.54)
+plot(nBAU_HR_cap_by_tech_graph)
+dev.off()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
